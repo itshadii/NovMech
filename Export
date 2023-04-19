@@ -1,0 +1,121 @@
+
+Option Explicit
+
+Sub main()
+
+Dim swApp           As SldWorks.SldWorks
+Dim swModel         As SldWorks.ModelDoc2
+Dim swDrawModel     As SldWorks.ModelDoc2
+Dim swDraw          As SldWorks.DrawingDoc
+Dim swView          As SldWorks.View
+Dim nErrors         As Long
+Dim nWarnings       As Long
+Dim Revision        As String
+Dim Inflo           As String 'inflo is part Number'
+Dim dFileName       As String
+Dim pFileName       As String
+Dim folderPath      As String
+Dim Path            As String
+
+'----------------------------------------------------------------------'
+' Change the file to your preference here
+'----------------------------------------------------------------------'
+Path = "S:\TF - Transfer\Hadi Al-Saudi\07 - Test" 'Change Path here
+'----------------------------------------------------------------------'
+' Saves active file in an object
+'----------------------------------------------------------------------'
+Set swApp = Application.SldWorks
+Set swDrawModel = swApp.ActiveDoc
+'----------------------------------------------------------------------'
+' Check to see if a drawing is loaded.
+'----------------------------------------------------------------------'
+If swDrawModel Is Nothing Then
+        MsgBox "There is no active drawing document"
+        Exit Sub
+End If
+'----------------------------------------------------------------------'
+' Check to see if the file is a drawing.
+'----------------------------------------------------------------------'
+If swDrawModel.GetType <> swDocDRAWING Then
+        MsgBox "Open a drawing first and then TRY again!"
+        Exit Sub
+End If
+'----------------------------------------------------------------------'
+' Check to see if the drawing is saved.
+'----------------------------------------------------------------------'
+If swDrawModel.GetPathName = "" Then
+        MsgBox "Plese Save the Drawing and then TRY again!"
+        swDrawModel.Save
+        Exit Sub
+End If
+'----------------------------------------------------------------------'
+' Gets information of the drawing and model and stores it in variables.
+'----------------------------------------------------------------------'
+Set swDraw = swDrawModel
+Set swView = swDraw.GetFirstView
+Set swView = swView.GetNextView
+'----------------------------------------------------------------------'
+' Determine if there is any model view
+'----------------------------------------------------------------------'
+If swView Is Nothing Then
+        MsgBox "No View(s) found, Insert a View first and then TRY again!"
+        Exit Sub
+End If
+'----------------------------------------------------------------------'
+' Determine if there is any model view in the drawing open
+'----------------------------------------------------------------------'
+If swView.GetReferencedModelName = "" Then
+        MsgBox "No Model View(s) found, Insert a View first and then TRY again!"
+        Exit Sub
+End If
+'----------------------------------------------------------------------'
+' Gets the Revision from Custom Properties
+'----------------------------------------------------------------------'
+Revision = swDraw.GetCustomInfoValue("", "Revision")
+If Revision = "" Then
+        Revision = ""
+End If
+'----------------------------------------------------------------------'
+' Gets the inflo from Custom Properties, change "inflo" to the custom property you have
+'----------------------------------------------------------------------'
+Inflo = swDraw.GetCustomInfoValue("", "inflo")
+If Inflo = "" Then
+        MsgBox "Enter Stock Code then Try Again to the Model"
+        Exit Sub
+End If
+'----------------------------------------------------------------------'
+'Drawing File Name Without Extension, assigns the name of the drawing
+'----------------------------------------------------------------------'
+dFileName = Mid(swDraw.GetPathName, InStrRev(swDraw.GetPathName, "\") + 1)
+dFileName = Left(dFileName, InStrRev(dFileName, ".") - 1)
+dFileName = Inflo + " - " + dFileName  'formats the drawing/folder name
+
+'----------------------------------------------------------------------'
+'Model File Name Without Extension
+'----------------------------------------------------------------------'
+Set swModel = swView.ReferencedDocument
+pFileName = Mid(swModel.GetPathName, InStrRev(swModel.GetPathName, "\") + 1)
+pFileName = Left(pFileName, InStrRev(pFileName, ".") - 1)
+pFileName = Inflo + " - " + pFileName 'formats the stp name
+'----------------------------------------------------------------------'
+' Create folder with name similar to pFileName
+'----------------------------------------------------------------------'
+folderPath = Path & "\" & pFileName
+If Dir(folderPath, vbDirectory) = "" Then
+    MkDir folderPath
+End If
+'----------------------------------------------------------------------'
+'Save as PDF, sets where the PDF and STEP file gets saved.
+'After the \ is the format of the name of the PDF saved.
+'After pdf prefix is fields required by the Save as command.
+'----------------------------------------------------------------------'
+swDraw.SaveAs3 folderPath & "\" & dFileName & " - " & "R" & Revision & ".PDF", 0, 0
+'----------------------------------------------------------------------'
+'Save as STEP
+'After the \ is the format of the name of the step file saved.
+'After step prefix is fields required by the Save as command.
+'----------------------------------------------------------------------'
+swModel.Extension.SaveAs folderPath & "\" & pFileName & " - " & "R" & Revision & ".step", swSaveAsCurrentVersion, swSaveAsOptions_Silent, Nothing, nErrors, nWarnings
+'----------------------------------------------------------------------'
+
+End Sub
