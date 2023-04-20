@@ -11,16 +11,23 @@ Dim swView          As SldWorks.View
 Dim nErrors         As Long
 Dim nWarnings       As Long
 Dim Revision        As String
-Dim Inflo           As String 'inflo is part Number'
+Dim Inflo           As String 'inflo is part Number which is taken from custom properties'
 Dim dFileName       As String
 Dim pFileName       As String
 Dim folderPath      As String
 Dim Path            As String
+Dim Description     As String
+
+Dim StartTime       As Double
+Dim EndTime         As Double
+Dim ElapsedTime     As Double
+
+StartTime = Timer
 
 '----------------------------------------------------------------------'
 ' Change the file to your preference here
 '----------------------------------------------------------------------'
-Path = "S:\TF - Transfer\Hadi Al-Saudi\07 - Test" 'Change Path here
+Path = "S:\TF - Transfer\Hadi Al-Saudi\07 - Test"
 '----------------------------------------------------------------------'
 ' Saves active file in an object
 '----------------------------------------------------------------------'
@@ -80,7 +87,15 @@ End If
 '----------------------------------------------------------------------'
 Inflo = swDraw.GetCustomInfoValue("", "inflo")
 If Inflo = "" Then
-        MsgBox "Enter Stock Code then Try Again to the Model"
+        MsgBox "Enter Stock Code then Try Again"
+        Exit Sub
+End If
+'----------------------------------------------------------------------'
+' Gets the Description from Custom Properties
+'----------------------------------------------------------------------'
+Description = swDraw.GetCustomInfoValue("", "Description")
+If Description = "" Then
+        MsgBox "Enter Description then Try Again"
         Exit Sub
 End If
 '----------------------------------------------------------------------'
@@ -88,7 +103,7 @@ End If
 '----------------------------------------------------------------------'
 dFileName = Mid(swDraw.GetPathName, InStrRev(swDraw.GetPathName, "\") + 1)
 dFileName = Left(dFileName, InStrRev(dFileName, ".") - 1)
-dFileName = Inflo + " - " + dFileName  'formats the drawing/folder name
+dFileName = dFileName + " - " + Description'formats the drawing/folder name
 
 '----------------------------------------------------------------------'
 'Model File Name Without Extension
@@ -96,7 +111,7 @@ dFileName = Inflo + " - " + dFileName  'formats the drawing/folder name
 Set swModel = swView.ReferencedDocument
 pFileName = Mid(swModel.GetPathName, InStrRev(swModel.GetPathName, "\") + 1)
 pFileName = Left(pFileName, InStrRev(pFileName, ".") - 1)
-pFileName = Inflo + " - " + pFileName 'formats the stp name
+pFileName = pFileName + " - " + Description'formats the drawing/folder namee
 '----------------------------------------------------------------------'
 ' Create folder with name similar to pFileName
 '----------------------------------------------------------------------'
@@ -109,13 +124,25 @@ End If
 'After the \ is the format of the name of the PDF saved.
 'After pdf prefix is fields required by the Save as command.
 '----------------------------------------------------------------------'
-swDraw.SaveAs3 folderPath & "\" & dFileName & " - " & "R" & Revision & ".PDF", 0, 0
+If Dir(folderPath & "\" & pFileName & " - " & "R" & Revision & ".PDF", vbNormal) <> "" Then
+    swDraw.SaveAs3 folderPath & "\" & pFileName & " - " & "R" & Revision & " - " & Format(Date, "yyyymmdd") & ".PDF", 0, 0
+Else
+    swDraw.SaveAs3 folderPath & "\" & pFileName & " - " & "R" & Revision & ".PDF", 0, 0
+End If
+'swDraw.SaveAs3 folderPath & "\" & pFileName & " - " & "R" & Revision & ".PDF", 0, 0
 '----------------------------------------------------------------------'
 'Save as STEP
 'After the \ is the format of the name of the step file saved.
 'After step prefix is fields required by the Save as command.
 '----------------------------------------------------------------------'
-swModel.Extension.SaveAs folderPath & "\" & pFileName & " - " & "R" & Revision & ".step", swSaveAsCurrentVersion, swSaveAsOptions_Silent, Nothing, nErrors, nWarnings
+If Dir(folderPath & "\" & pFileName & " - " & "R" & Revision & ".step", vbNormal) <> "" Then
+    swModel.Extension.SaveAs folderPath & "\" & pFileName & " - " & "R" & Revision & " - " & Format(Date, "yyyymmdd") & ".step", swSaveAsCurrentVersion, swSaveAsOptions_Silent, Nothing, nErrors, nWarnings
+Else
+    swModel.Extension.SaveAs folderPath & "\" & pFileName & " - " & "R" & Revision & ".step", swSaveAsCurrentVersion, swSaveAsOptions_Silent, Nothing, nErrors, nWarnings
+End If
+'swModel.Extension.SaveAs folderPath & "\" & pFileName & " - " & "R" & Revision & ".step", swSaveAsCurrentVersion, swSaveAsOptions_Silent, Nothing, nErrors, nWarnings
 '----------------------------------------------------------------------'
-
+EndTime = Timer
+ElapsedTime = EndTime - StartTime
+MsgBox "Yea Buddy! Light weight! Export Complete, this task took " & ElapsedTime & " seconds to complete." & vbCr & "Files saved here: " & vbCr & folderPath
 End Sub
