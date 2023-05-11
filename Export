@@ -11,23 +11,31 @@ Dim swView          As SldWorks.View
 Dim nErrors         As Long
 Dim nWarnings       As Long
 Dim Revision        As String
-Dim Inflo           As String 'inflo is part Number which is taken from custom properties'
-Dim dFileName       As String
+Dim Inflo           As String
+'Dim dFileName       As String
 Dim pFileName       As String
-Dim folderPath      As String
-Dim Path            As String
 Dim Description     As String
-
+Dim folderPath      As String
+Dim APath           As String 'Archived folder
+Dim Path            As String
 Dim StartTime       As Double
 Dim EndTime         As Double
 Dim ElapsedTime     As Double
+Dim FSO             As Object
+Dim R               As Integer
+Dim SourceFileName  As String, DestinFileName As String
+
 
 StartTime = Timer
-
+'----------------------------------------------------------------------'
+' Sets instance to allow SolidWorks to manipulate existing files
+' using Windows commands
+'----------------------------------------------------------------------'
+Set FSO = CreateObject("Scripting.Filesystemobject")
 '----------------------------------------------------------------------'
 ' Change the file to your preference here
 '----------------------------------------------------------------------'
-Path = "S:\TF - Transfer\Hadi Al-Saudi\07 - Test"
+Path = "S:\TF - Transfer\Hadi Al-Saudi\07 - Test" 'Change Path here
 '----------------------------------------------------------------------'
 ' Saves active file in an object
 '----------------------------------------------------------------------'
@@ -76,73 +84,93 @@ If swView.GetReferencedModelName = "" Then
         Exit Sub
 End If
 '----------------------------------------------------------------------'
-' Gets the Revision from Custom Properties
+' Gets the Revision from Custom Properties, if the revision is empty
+' or not a number it prompts an error
 '----------------------------------------------------------------------'
 Revision = swDraw.GetCustomInfoValue("", "Revision")
-If Revision = "" Then
-        Revision = ""
+If Revision = "" Or IsNumeric(Revision) Then
+Else
+        MsgBox "The revision is incorrect."
+        Exit Sub
 End If
 '----------------------------------------------------------------------'
 ' Gets the inflo from Custom Properties, change "inflo" to the custom property you have
 '----------------------------------------------------------------------'
 Inflo = swDraw.GetCustomInfoValue("", "inflo")
 If Inflo = "" Then
-        MsgBox "Enter Stock Code then Try Again"
+        MsgBox "Enter Stock Code then Try Again to the Model"
         Exit Sub
 End If
 '----------------------------------------------------------------------'
-' Gets the Description from Custom Properties
+' Gets the inflo from Custom Properties, change Description to the custom property you have
 '----------------------------------------------------------------------'
 Description = swDraw.GetCustomInfoValue("", "Description")
 If Description = "" Then
-        MsgBox "Enter Description then Try Again"
+        MsgBox "Enter Description then Try Again to the Model"
         Exit Sub
 End If
-'----------------------------------------------------------------------'
-'Drawing File Name Without Extension, assigns the name of the drawing
-'----------------------------------------------------------------------'
-dFileName = Mid(swDraw.GetPathName, InStrRev(swDraw.GetPathName, "\") + 1)
-dFileName = Left(dFileName, InStrRev(dFileName, ".") - 1)
-dFileName = dFileName + " - " + Description'formats the drawing/folder name
-
 '----------------------------------------------------------------------'
 'Model File Name Without Extension
 '----------------------------------------------------------------------'
 Set swModel = swView.ReferencedDocument
-pFileName = Mid(swModel.GetPathName, InStrRev(swModel.GetPathName, "\") + 1)
-pFileName = Left(pFileName, InStrRev(pFileName, ".") - 1)
-pFileName = pFileName + " - " + Description'formats the drawing/folder namee
+pFileName = Inflo + "_" + Description  'formats the drawing/folder name
 '----------------------------------------------------------------------'
 ' Create folder with name similar to pFileName
 '----------------------------------------------------------------------'
 folderPath = Path & "\" & pFileName
 If Dir(folderPath, vbDirectory) = "" Then
     MkDir folderPath
+    MsgBox "Folder is created in the following directory: " + folderPath
+End If
+'----------------------------------------------------------------------'
+' Create an Archive folder, APath
+'----------------------------------------------------------------------'
+APath = folderPath & "\" & "Achived"
+If Dir(APath, vbDirectory) = "" Then
+    MkDir APath
+    MsgBox "Folder is created in the following directory: " + APath
 End If
 '----------------------------------------------------------------------'
 'Save as PDF, sets where the PDF and STEP file gets saved.
 'After the \ is the format of the name of the PDF saved.
 'After pdf prefix is fields required by the Save as command.
 '----------------------------------------------------------------------'
-If Dir(folderPath & "\" & pFileName & " - " & "R" & Revision & ".PDF", vbNormal) <> "" Then
-    swDraw.SaveAs3 folderPath & "\" & pFileName & " - " & "R" & Revision & " - " & Format(Date, "yyyymmdd") & ".PDF", 0, 0
-Else
-    swDraw.SaveAs3 folderPath & "\" & pFileName & " - " & "R" & Revision & ".PDF", 0, 0
-End If
-'swDraw.SaveAs3 folderPath & "\" & pFileName & " - " & "R" & Revision & ".PDF", 0, 0
+swDraw.SaveAs3 folderPath & "\" & "SW_EN_DWG_" & pFileName & "_" & "R" & Revision & ".PDF", 0, 0
 '----------------------------------------------------------------------'
 'Save as STEP
 'After the \ is the format of the name of the step file saved.
 'After step prefix is fields required by the Save as command.
 '----------------------------------------------------------------------'
-If Dir(folderPath & "\" & pFileName & " - " & "R" & Revision & ".step", vbNormal) <> "" Then
-    swModel.Extension.SaveAs folderPath & "\" & pFileName & " - " & "R" & Revision & " - " & Format(Date, "yyyymmdd") & ".step", swSaveAsCurrentVersion, swSaveAsOptions_Silent, Nothing, nErrors, nWarnings
-Else
-    swModel.Extension.SaveAs folderPath & "\" & pFileName & " - " & "R" & Revision & ".step", swSaveAsCurrentVersion, swSaveAsOptions_Silent, Nothing, nErrors, nWarnings
+swModel.Extension.SaveAs folderPath & "\" & "SW_EN_DWG_" & pFileName & "_" & "R" & Revision & ".step", swSaveAsCurrentVersion, swSaveAsOptions_Silent, Nothing, nErrors, nWarnings
+'----------------------------------------------------------------------'
+' Move Previous Revision To Arhive
+' If the previous revision already exist in the archived folder
+' A prompt will show up showing that the previous revision already exist.
+'----------------------------------------------------------------------'
+R = CInt(Revision)
+If Dir(folderPath & "\" & "SW_EN_DWG_" & pFileName & "_" & "R" & R & ".PDF", vbNormal) <> "" Then
+    SourceFileName = folderPath & "\" & "SW_EN_DWG_" & pFileName & "_" & "R" & R & ".PDF"
+    DestinFileName = APath & "\" & "SW_EN_DWG_" & pFileName & "_" & "R" & R & ".PDF"
+    If Dir(DestinFileName, vbNormal) <> "" Then
+        MsgBox "Previous revision already exist in Archived folder."
+        Exit Sub
+    End If
+    FSO.MoveFile Source:=SourceFileName, Destination:=DestinFileName
 End If
-'swModel.Extension.SaveAs folderPath & "\" & pFileName & " - " & "R" & Revision & ".step", swSaveAsCurrentVersion, swSaveAsOptions_Silent, Nothing, nErrors, nWarnings
+
+If Dir(folderPath & "\" & "SW_EN_DWG_" & pFileName & "_" & "R" & R & ".Step", vbNormal) <> "" Then
+    SourceFileName = folderPath & "\" & "SW_EN_DWG_" & pFileName & "_" & "R" & R & ".Step"
+    DestinFileName = APath & "\" & "SW_EN_DWG_" & pFileName & "_" & "R" & R & ".Step"
+    If Dir(DestinFileName, vbNormal) <> "" Then
+        Exit Sub
+    End If
+    FSO.MoveFile Source:=SourceFileName, Destination:=DestinFileName
+End If
+'----------------------------------------------------------------------'
+' Timer Crap
 '----------------------------------------------------------------------'
 EndTime = Timer
 ElapsedTime = EndTime - StartTime
-MsgBox "Yea Buddy! Light weight! Export Complete, this task took " & ElapsedTime & " seconds to complete." & vbCr & "Files saved here: " & vbCr & folderPath
+MsgBox "Export Complete, This task took " & ElapsedTime & " seconds to complete." & vbCr & "Files saved here: " & vbCr & folderPath
+
 End Sub
